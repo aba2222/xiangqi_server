@@ -26,19 +26,19 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
     try:
         while True:
             data = await websocket.receive_json()
-            message = f"Message received for game {game_id}: {data}"
+            print(f"Message received for game {game_id}: {data}")
             for connection in active_connections:
                 if connection != websocket:
-                    await connection.send_text(message)
+                    await connection.send_json(data)
 
     except WebSocketDisconnect as e:
         print(f"Connection closed with code {e.code}")
         active_connections.remove(websocket)
     except Exception as e:
-        await websocket.send_text(f"Error occurred: {str(e)}")
+        # await websocket.send_text(f"Error occurred: {str(e)}")
         print(f"Error: {str(e)}")
     finally:
         if websocket in active_connections:
             active_connections.remove(websocket)
-        if not websocket.client_state == WebSocketState.DISCONNECTED:
+        if not websocket.client_state != WebSocketState.DISCONNECTED:
             await websocket.close(code=1000, reason="Normal closure")
