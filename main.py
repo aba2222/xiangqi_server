@@ -10,6 +10,8 @@ DATABASE_URL = "sqlite:///./game_data.db"
 
 Base = declarative_base()
 
+active_players = 0
+
 # 创建数据库引擎
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -53,15 +55,12 @@ def get_db():
 
 
 @app.get("/")
-async def read_root(request: Request):
+async def read_root(request: Request, db: Session = Depends(get_db)):
+    games = db.query(Game).limit(100).all()
     return templates.TemplateResponse(
-        "home_page.html", {"request": request, "message": "Hello, World!"}
+        "home_page.html",
+        {"request": request, "active_players": active_players, "games": games},
     )
-
-
-# @app.get("/get_games")
-# async def get_games():
-# return games
 
 
 @app.post("/create_game")
@@ -73,10 +72,6 @@ async def create_game(game_code: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_game)  # 获取数据库中的新记录
 
-    return {"game_id": game_id}
-
-    game_id = str(uuid.uuid4())  # 生成唯一的 game_id
-    games[game_id] = {"game_code": game_code, "players": []}  # 用于保存加入该对局的玩家
     return {"game_id": game_id}
 
 
@@ -99,6 +94,8 @@ async def websocket_endpoint(
     db.add(db_player)
     db.commit()
 
+    active_players += 1
+
     try:
         while True:
             data = await websocket.receive_json()
@@ -114,6 +111,7 @@ async def websocket_endpoint(
     except Exception as e:
         print(f"Error: {str(e)}")
     finally:
+        active_players -= 1
         if (
             db.query(Player)
             .filter(Player.websocket_id == str(websocket.client))

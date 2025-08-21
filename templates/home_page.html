@@ -4,15 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Xiangqi Server</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='home.css') }}?v=1.0.3">
 </head>
 <body>
 
 <header>
     <p>Xiangqi Server</p>
 </header>
-<div>
-    <h1>{{ message }}</h1>
+
+
+<div class="main">
+    <div>
+        <h2 class="active-players">Active Players: {{ active_players }}</h2>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Game ID</th>
+                <th>Game Code</th>
+                <th>Players</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for game in games %}
+            <tr>
+                <td>{{ game.id }}</td>
+                <td>{{ game.game_code }}</td>
+                <td>
+                    {% for player in game.players %}
+                        {{ player.websocket_id }}<br>
+                    {% else %}
+                        No player<br>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3">No games currently available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
 </div>
 <footer>
     <p>Xiangqi Server <a href="https://github.com/aba2222/xiangqi_server" target="_blank">Source Code</a></p>
