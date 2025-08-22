@@ -10,6 +10,8 @@ DATABASE_URL = "sqlite:///./game_data.db"
 
 Base = declarative_base()
 
+connections: dict[str, WebSocket] = {}
+
 active_players = 0
 
 # 创建数据库引擎
@@ -85,14 +87,17 @@ async def websocket_endpoint(
 
     await websocket.accept()
 
+    websocket_id = str(uuid4())
+
     game_code = db.query(Game).filter(Game.id == game_id).first().game_code
 
     await websocket.send_json({"game_id": game_id, "game_code": game_code})
 
     # 在数据库中为玩家创建记录
-    db_player = Player(websocket_id=str(websocket.client), game_id=game_id)
+    db_player = Player(websocket_id=websocket_id, game_id=game_id)
     db.add(db_player)
     db.commit()
+    connections[websocket_id] = websocket
 
     global active_players
     active_players += 1
@@ -101,12 +106,15 @@ async def websocket_endpoint(
         while True:
             data = await websocket.receive_json()
             print(f"Message received for game {game_id}: {data}")
-            for player in db.query(Player).filter(Player.game_id == game_id).all():
-                if player.websocket_id != str(websocket.client):
-                    await websocket.send_json(data)
+
+            players = db.query(Player).filter(Player.game_id == game_id).all()
+            for player in players:
+                if player.websocket_id != websocket_id and player.websocket_id in connections:
+                    await connections[player.websocket_id].send_json(data)
 
     except WebSocketDisconnect as e:
         print(f"Connection closed with code {e.code}")
+        connections.pop(websocket_id, None)
         db.query(Player).filter(Player.websocket_id == str(websocket.client)).delete()
         db.commit()
     except Exception as e:
@@ -118,8 +126,6 @@ async def websocket_endpoint(
             .filter(Player.websocket_id == str(websocket.client))
             .first()
         ):
-            db.query(Player).filter(
-                Player.websocket_id == str(websocket.client)
-            ).delete()
-            db.commit()
-            await websocket.close(code=1000, reason="Normal closure")
+            connections.pop(websocket_id, None)
+            db.query(Player).filter(Player.websocket_id == websocket_id).delete()
+        await websocket.close(code=1000, reason="Normal closure")
