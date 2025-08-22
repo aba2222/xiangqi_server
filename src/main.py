@@ -94,6 +94,7 @@ async def websocket_endpoint(
     db.add(db_player)
     db.commit()
 
+    global active_players
     active_players += 1
 
     try:
