@@ -115,7 +115,7 @@ async def websocket_endpoint(
     except WebSocketDisconnect as e:
         print(f"Connection closed with code {e.code}")
         connections.pop(websocket_id, None)
-        db.query(Player).filter(Player.websocket_id == str(websocket.client)).delete()
+        db.query(Player).filter(Player.websocket_id == websocket_id).delete()
         db.commit()
     except Exception as e:
         print(f"Error: {str(e)}")
@@ -123,7 +123,7 @@ async def websocket_endpoint(
         active_players -= 1
         if (
             db.query(Player)
-            .filter(Player.websocket_id == str(websocket.client))
+            .filter(Player.websocket_id == websocket_id)
             .first()
         ):
             connections.pop(websocket_id, None)
